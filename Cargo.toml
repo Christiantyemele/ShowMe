@@ -1,6 +1,8 @@
 [package]
-name = "ShowMe"
+name = "gp"
 version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+diesel = { version = "2.2.3", features = ["postgres"] }
+dotenvy = "0.15.7"

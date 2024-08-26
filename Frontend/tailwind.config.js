@@ -1,12 +1,11 @@
 /** @type {import('tailwindcss').Config} */
 export default {
-  darkMode: 'media',
-  content: [
-    "./index.html",
-    "./src/**/*.{js,ts,jsx,tsx}",
-  ],
+  daisyui: {
+    themes: ["light", "dark", "cupcake"],
+  },
+  content: ["./index.html", "./src/**/*.{js,ts,jsx,tsx}"],
   theme: {
     extend: {},
   },
-  plugins: [],
-}
+  plugins: [require("daisyui")],
+};
