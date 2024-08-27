@@ -6,5 +6,8 @@ edition = "2021"
 [dependencies]
 diesel = { version = "2.2.3", features = ["postgres"] }
 dotenvy = "0.15.7"
+getrandom = "0.2.15"
+pbkdf2 = { version = "0.12.2", features = ["password-hash", "simple"] }
 rand_chacha = "0.3.1"
-rand_core = "0.6.4"
+rand_core = { version = "0.6.4", features = ["getrandom"] }
+sqlx = "0.8.1"

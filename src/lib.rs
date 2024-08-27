@@ -1,4 +1,7 @@
-use std::env;
+use std::{
+    env,
+    sync::{Arc, Mutex},
+};
 
 use diesel::{
     Connection, ExpressionMethods, PgConnection, QueryDsl, RunQueryDsl, SelectableHelper,
@@ -6,9 +9,17 @@ use diesel::{
 };
 use dotenvy::dotenv;
 use model::{NewUser, Users};
+use rand_chacha::ChaCha8Rng;
 
+pub mod error;
 pub mod model;
 pub mod schema;
+pub mod web;
+pub mod authentication;
+
+type Random = Arc<Mutex<ChaCha8Rng>>;
+type Database = PgConnection;
+pub struct SessionToken(u128);
 
 pub fn establish_connection() -> PgConnection {
     dotenv().ok();
@@ -16,16 +27,19 @@ pub fn establish_connection() -> PgConnection {
     PgConnection::establish(&database_url)
         .unwrap_or_else(|_| panic!("Error connecting to {}", database_url))
 }
-pub fn create_user(conn: &mut PgConnection, user: String, pass: String) -> Users {
+pub fn create_user(
+    conn: &mut PgConnection,
+    user: String,
+    pass: String,
+) -> Result<i32, diesel::result::Error> {
     let new_user = NewUser {
         username: user,
         passkey: pass,
     };
     diesel::insert_into(schema::users::table)
         .values(&new_user)
-        .returning(Users::as_returning())
+        .returning(schema::users::id)
         .get_result(conn)
-        .expect("Error saving new user")
 }
 
 pub fn delete_user(conn: &mut PgConnection, usernam: String) {
