@@ -27,17 +27,27 @@ pub fn create_user(conn: &mut PgConnection, user: String, pass: String) -> Users
         .get_result(conn)
         .expect("Error saving new user")
 }
-pub fn update_user(conn: &mut PgConnection, usernam: String) {
-    use schema::users::dsl::*;
-    let update = diesel::update(users.filter(username.like(usernam)))
-        .set(schema::users::dsl::username.eq("string1"))
-        .returning(Users::as_returning())
-        .get_result(conn);
-}
+
 pub fn delete_user(conn: &mut PgConnection, usernam: String) {
     use schema::users::dsl::*;
-    let num_deleted = diesel::delete(users.filter(username.like(usernam)))
+    let _ = diesel::delete(users.filter(username.like(usernam)))
         .execute(conn)
-        .expect("Error deleting posts");
-    println!("Deleted {} posts", num_deleted)
+        .expect("Error deleting user");
+}
+pub fn get_user(conn: &mut PgConnection, usernam: String) -> Vec<Users> {
+    use schema::users::dsl::*;
+    let single_user = users
+        .filter(username.eq(usernam))
+        .select(Users::as_select())
+        .load(conn)
+        .expect("Error loading user");
+    single_user
+}
+pub fn get_all_users(conn: &mut PgConnection) -> Vec<Users> {
+    use schema::users::dsl::*;
+    let all_users = users
+        .select(Users::as_select())
+        .load(conn)
+        .expect("Error loading users");
+    all_users
 }

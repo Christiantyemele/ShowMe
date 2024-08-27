@@ -16,3 +16,10 @@ pub struct NewUser {
     pub username: String,
     pub passkey: String,
 }
+#[derive(Insertable)]
+#[diesel(table_name = crate::schema::sessions)]
+
+pub struct Session {
+    pub user_id: i32,
+    pub session_token: Vec<u8>,
+}
