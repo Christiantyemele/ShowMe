@@ -4,10 +4,15 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+axum = "0.7.5"
 diesel = { version = "2.2.3", features = ["postgres"] }
 dotenvy = "0.15.7"
 getrandom = "0.2.15"
+http = "1.1.0"
 pbkdf2 = { version = "0.12.2", features = ["password-hash", "simple"] }
 rand_chacha = "0.3.1"
 rand_core = { version = "0.6.4", features = ["getrandom"] }
+serde = { version = "1.0.209", features = ["derive"] }
 sqlx = "0.8.1"
+tokio = { version = "1.39.3", features = ["rt-multi-thread"] }
+tower-http = { version = "0.5.2", features = ["fs"] }

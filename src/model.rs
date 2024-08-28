@@ -1,4 +1,5 @@
 use diesel::prelude::*;
+use serde::Deserialize;
 
 #[derive(Queryable, Selectable, Insertable)]
 #[diesel(table_name = crate::schema::users)]
@@ -18,7 +19,7 @@ pub struct NewUser {
 }
 #[derive(Insertable)]
 #[diesel(table_name = crate::schema::sessions)]
-
+#[derive(Debug, Deserialize)]
 pub struct Session {
     pub user_id: i32,
     pub session_token: Vec<u8>,

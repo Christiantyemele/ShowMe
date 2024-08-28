@@ -8,18 +8,36 @@ use diesel::{
     TextExpressionMethods,
 };
 use dotenvy::dotenv;
-use model::{NewUser, Users};
+use model::{NewUser, Session, Users};
 use rand_chacha::ChaCha8Rng;
+use rand_core::RngCore;
 
+pub mod authentication;
 pub mod error;
 pub mod model;
 pub mod schema;
 pub mod web;
-pub mod authentication;
 
 type Random = Arc<Mutex<ChaCha8Rng>>;
 type Database = PgConnection;
+impl Clone for PgConnection {
+    fn clone(&self) -> Self {
+        Self {PgConnection}
+    }
+}
+
+#[derive(Clone)]
 pub struct SessionToken(u128);
+impl SessionToken {
+    pub fn generate_new(random: Random) -> Self {
+        let mut u128_pool = [0u8; 16];
+        random.lock().unwrap().fill_bytes(&mut u128_pool);
+        Self(u128::from_le_bytes(u128_pool))
+    }
+    pub fn into_database_value(self) -> Vec<u8> {
+        self.0.to_be_bytes().to_vec()
+    }
+}
 
 pub fn establish_connection() -> PgConnection {
     dotenv().ok();
@@ -64,4 +82,18 @@ pub fn get_all_users(conn: &mut PgConnection) -> Vec<Users> {
         .load(conn)
         .expect("Error loading users");
     all_users
+}
+pub fn create_session(
+    conn: &mut PgConnection,
+    token: SessionToken,
+    uid: i32,
+) -> Vec<u8>{
+    let new_session = Session {
+        user_id: uid,
+        session_token: token.into_database_value(),
+    };
+    diesel::insert_into(schema::sessions::table)
+        .values(&new_session)
+        .returning(schema::sessions::dsl::session_token)
+        .get_result(conn).unwrap()
 }
