@@ -1,34 +1,47 @@
 use std::{
     env,
+    str::FromStr,
     sync::{Arc, Mutex},
 };
 
 use diesel::{
-    Connection, ExpressionMethods, PgConnection, QueryDsl, RunQueryDsl, SelectableHelper,
+    r2d2::{self, ConnectionManager, Pool,},
+    ExpressionMethods, PgConnection, QueryDsl, RunQueryDsl, SelectableHelper,
     TextExpressionMethods,
 };
 use dotenvy::dotenv;
 use model::{NewUser, Session, Users};
 use rand_chacha::ChaCha8Rng;
+
 use rand_core::RngCore;
 
 pub mod authentication;
 pub mod error;
 pub mod model;
 pub mod schema;
+pub mod utils;
 pub mod web;
 
 type Random = Arc<Mutex<ChaCha8Rng>>;
+const AUTH_COOKIE_NAME: &str = "auth_token";
 type Database = PgConnection;
-impl Clone for PgConnection {
-    fn clone(&self) -> Self {
-        Self {PgConnection}
-    }
-}
+pub type SharedDb = Pool<ConnectionManager<PgConnection>>;
 
+pub struct AppState {
+    pub database: SharedDb
+}
 #[derive(Clone)]
 pub struct SessionToken(u128);
+impl FromStr for SessionToken {
+    type Err = <u128 as FromStr>::Err;
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        s.parse().map(Self)
+    }
+}
 impl SessionToken {
+    pub fn into_cookie_value(self) -> String {
+        self.0.to_string()
+    }
     pub fn generate_new(random: Random) -> Self {
         let mut u128_pool = [0u8; 16];
         random.lock().unwrap().fill_bytes(&mut u128_pool);
@@ -39,14 +52,18 @@ impl SessionToken {
     }
 }
 
-pub fn establish_connection() -> PgConnection {
+pub fn establish_connection() -> Pool<ConnectionManager<PgConnection>> {
     dotenv().ok();
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    PgConnection::establish(&database_url)
-        .unwrap_or_else(|_| panic!("Error connecting to {}", database_url))
+    let manager = ConnectionManager::<PgConnection>::new(&database_url);
+    let pool = r2d2::Pool::builder()
+        .build(manager)
+        .expect("Failed to create pool.");
+    let conn = pool;
+    return conn;
 }
 pub fn create_user(
-    conn: &mut PgConnection,
+    conn: &mut Database,
     user: String,
     pass: String,
 ) -> Result<i32, diesel::result::Error> {
@@ -60,13 +77,13 @@ pub fn create_user(
         .get_result(conn)
 }
 
-pub fn delete_user(conn: &mut PgConnection, usernam: String) {
+pub fn delete_user(conn: &mut Database, usernam: String) {
     use schema::users::dsl::*;
     let _ = diesel::delete(users.filter(username.like(usernam)))
         .execute(conn)
         .expect("Error deleting user");
 }
-pub fn get_user(conn: &mut PgConnection, usernam: String) -> Vec<Users> {
+pub fn get_user(conn: &mut Database, usernam: String) -> Vec<Users> {
     use schema::users::dsl::*;
     let single_user = users
         .filter(username.eq(usernam))
@@ -75,7 +92,7 @@ pub fn get_user(conn: &mut PgConnection, usernam: String) -> Vec<Users> {
         .expect("Error loading user");
     single_user
 }
-pub fn get_all_users(conn: &mut PgConnection) -> Vec<Users> {
+pub fn get_all_users(conn: &mut Database) -> Vec<Users> {
     use schema::users::dsl::*;
     let all_users = users
         .select(Users::as_select())
@@ -83,11 +100,7 @@ pub fn get_all_users(conn: &mut PgConnection) -> Vec<Users> {
         .expect("Error loading users");
     all_users
 }
-pub fn create_session(
-    conn: &mut PgConnection,
-    token: SessionToken,
-    uid: i32,
-) -> Vec<u8>{
+pub fn create_session(conn: &mut Database, token: SessionToken, uid: i32) -> Vec<u8> {
     let new_session = Session {
         user_id: uid,
         session_token: token.into_database_value(),
@@ -95,5 +108,6 @@ pub fn create_session(
     diesel::insert_into(schema::sessions::table)
         .values(&new_session)
         .returning(schema::sessions::dsl::session_token)
-        .get_result(conn).unwrap()
+        .get_result(conn)
+        .unwrap()
 }
