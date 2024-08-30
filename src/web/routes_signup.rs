@@ -1,16 +1,14 @@
-use axum::{response::IntoResponse, Extension, Json};
-use tower_cookies::Cookies;
-
-use crate::utils::login_response;
+use axum::{response::IntoResponse, Extension};
+use axum::extract::Json;
 use crate::Database;
 use crate::{
     authentication::{signup, SignupPayload},
-    error::error_page,
+  
     Random,
 };
 
-async fn post_signup(
-    cookie: Cookies,
+pub async fn post_signup(
+ //   Extension(cookie): Extension<Cookies>,
     Extension(database): Extension<Database>,
     Extension(random): Extension<Random>,
     Json(signup_payload): Json<SignupPayload>,
@@ -20,10 +18,10 @@ async fn post_signup(
         random,
         signup_payload.username,
         signup_payload.password,
-    )
-    .await
+    ) .await
     {
-        Ok(session_tk) => Ok(login_response(cookie, session_tk)),
-        Err(e) => Err(error_page(&e)),
+        Ok(session_tk) => "",//Ok(login_response(cookie, session_tk)),
+        Err(e) => ""// {Err(error_page(&e)); ""}
     }
+    
 }

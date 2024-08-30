@@ -1,10 +1,15 @@
-
 use axum::extract::Request;
+
+use diesel::{
+    r2d2::{ConnectionManager, Pool},
+    PgConnection,
+};
 use pbkdf2::{password_hash::SaltString, Pbkdf2};
 use rand_core::OsRng;
 
 use crate::{
-    create_session, create_user, error::SignupError, get_user, Database, Random, SessionToken, AUTH_COOKIE_NAME
+    create_session, create_user, error::SignupError, get_user, Database, Random, SessionToken,
+    SharedDb, AUTH_COOKIE_NAME,
 };
 use pbkdf2::password_hash::PasswordHasher;
 
@@ -14,7 +19,13 @@ pub struct User {
 }
 #[allow(unused)]
 #[derive(Clone)]
-pub struct AuthState(Option<(SessionToken, Option<User>)>);
+pub struct AuthState(
+    Option<(
+        SessionToken,
+        Option<User>,
+        Pool<ConnectionManager<PgConnection>>,
+    )>,
+);
 
 pub async fn new_session(mut database: Database, random: Random, uid: i32) -> SessionToken {
     let session_token = SessionToken::generate_new(random);
@@ -23,9 +34,9 @@ pub async fn new_session(mut database: Database, random: Random, uid: i32) -> Se
 }
 // **AUTH MIDDLEWARE**
 pub async fn auth<B>(
+    database: SharedDb,
     mut req: Request,
     next: axum::middleware::Next,
-   // database: SharedDb,
 ) -> axum::response::Response {
     let session_tk = req
         .headers()
@@ -42,7 +53,7 @@ pub async fn auth<B>(
         })
         .and_then(|cookie_value| cookie_value.parse::<SessionToken>().ok());
     req.extensions_mut()
-        .insert(AuthState(session_tk.map(|v| (v, None))));
+        .insert(AuthState(session_tk.map(|v| (v, None, database))));
     next.run(req).await
 }
 use serde::Deserialize;
@@ -53,7 +64,7 @@ pub struct SignupPayload {
     pub password: String,
 }
 pub async fn signup(
-     mut database: Database,
+    mut database: Database,
     random: Random,
     username: String,
     password: String,
