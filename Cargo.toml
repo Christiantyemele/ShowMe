@@ -6,14 +6,18 @@ edition = "2021"
 [dependencies]
 axum = "0.7.5"
 cookie = "0.18.1"
+deadpool-diesel = "0.6.1"
 diesel = { version = "2.2.3", features = ["postgres", "r2d2"] }
+diesel-async = { version = "0.5.0", features = ["bb8", "deadpool", "postgres"] }
 dotenvy = "0.15.7"
 getrandom = "0.2.15"
 http = "1.1.0"
 pbkdf2 = { version = "0.12.2", features = ["password-hash", "simple"] }
 rand_chacha = "0.3.1"
 rand_core = { version = "0.6.4", features = ["getrandom"] }
+reqwest = "0.12.7"
 serde = { version = "1.0.209", features = ["derive"] }
+serde_json = "1.0.127"
 sqlx = { version = "0.8.1", features = ["postgres"] }
 tokio = { version = "1.39.3", features = ["rt-multi-thread"] }
 tower-cookies = "0.10.0"

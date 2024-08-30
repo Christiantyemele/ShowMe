@@ -1,17 +1,14 @@
+use diesel::prelude::*;
+use diesel_async::{pooled_connection::bb8::Pool, RunQueryDsl};
+use diesel_async::{pooled_connection::AsyncDieselConnectionManager, AsyncPgConnection};
+use dotenvy::dotenv;
+use model::{NewUser, Session, Users};
+use rand_chacha::ChaCha8Rng;
 use std::{
     env,
     str::FromStr,
     sync::{Arc, Mutex},
 };
-
-use diesel::{
-    r2d2::{self, ConnectionManager, Pool,},
-    ExpressionMethods, PgConnection, QueryDsl, RunQueryDsl, SelectableHelper,
-    TextExpressionMethods,
-};
-use dotenvy::dotenv;
-use model::{NewUser, Session, Users};
-use rand_chacha::ChaCha8Rng;
 
 use rand_core::RngCore;
 
@@ -24,11 +21,11 @@ pub mod web;
 
 type Random = Arc<Mutex<ChaCha8Rng>>;
 const AUTH_COOKIE_NAME: &str = "auth_token";
-type Database = PgConnection;
-pub type SharedDb = Pool<ConnectionManager<PgConnection>>;
+type Database = Pool<AsyncPgConnection>;
+pub type SharedDb = Pool<AsyncPgConnection>;
 
 pub struct AppState {
-    pub database: SharedDb
+    pub database: SharedDb,
 }
 #[derive(Clone)]
 pub struct SessionToken(u128);
@@ -52,62 +49,77 @@ impl SessionToken {
     }
 }
 
-pub fn establish_connection() -> Pool<ConnectionManager<PgConnection>> {
+pub async fn establish_connection() -> Pool<AsyncPgConnection> {
     dotenv().ok();
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
-    let manager = ConnectionManager::<PgConnection>::new(&database_url);
-    let pool = r2d2::Pool::builder()
+    let manager = AsyncDieselConnectionManager::<AsyncPgConnection>::new(database_url);
+
+    Pool::builder()
         .build(manager)
-        .expect("Failed to create pool.");
-    let conn = pool;
-    return conn;
+        .await
+        .expect("Could not build connection pool")
 }
-pub fn create_user(
+pub async fn create_user(
     conn: &mut Database,
     user: String,
     pass: String,
 ) -> Result<i32, diesel::result::Error> {
+    use diesel_async::RunQueryDsl;
+    let mut conn = conn.get().await.unwrap();
+
     let new_user = NewUser {
         username: user,
         passkey: pass,
     };
-    diesel::insert_into(schema::users::table)
+    let result: Result<i32, diesel::result::Error> = diesel::insert_into(schema::users::table)
         .values(&new_user)
         .returning(schema::users::id)
-        .get_result(conn)
+        .get_result::<i32>(&mut *conn)
+        .await;
+    result
 }
 
-pub fn delete_user(conn: &mut Database, usernam: String) {
+pub async fn delete_user(conn: &mut Database, usernam: String) {
+    let mut conn = conn.get().await.unwrap();
     use schema::users::dsl::*;
-    let _ = diesel::delete(users.filter(username.like(usernam)))
-        .execute(conn)
+    diesel::delete(users.filter(username.like(usernam)))
+        .execute(&mut conn)
+        .await
         .expect("Error deleting user");
 }
-pub fn get_user(conn: &mut Database, usernam: String) -> Vec<Users> {
+pub async fn get_user(conn: &mut Database, usernam: String) -> Vec<Users> {
     use schema::users::dsl::*;
-    let single_user = users
+    let mut conn = conn.get().await.unwrap();
+    let result = users
         .filter(username.eq(usernam))
         .select(Users::as_select())
-        .load(conn)
-        .expect("Error loading user");
-    single_user
+        .load(&mut *conn)
+        .await
+        .unwrap();
+
+    result
 }
-pub fn get_all_users(conn: &mut Database) -> Vec<Users> {
+pub async fn get_all_users(conn: &mut Database) -> Vec<Users> {
+    let mut conn = conn.get().await.unwrap();
     use schema::users::dsl::*;
     let all_users = users
         .select(Users::as_select())
-        .load(conn)
-        .expect("Error loading users");
+        .get_results(&mut *conn)
+        .await
+        .unwrap();
     all_users
 }
-pub fn create_session(conn: &mut Database, token: SessionToken, uid: i32) -> Vec<u8> {
+pub async fn create_session(conn: &mut Database, token: SessionToken, uid: i32) -> Vec<u8> {
+    let mut conn = conn.get().await.unwrap();
     let new_session = Session {
         user_id: uid,
         session_token: token.into_database_value(),
     };
-    diesel::insert_into(schema::sessions::table)
+    let result = diesel::insert_into(schema::sessions::table)
         .values(&new_session)
         .returning(schema::sessions::dsl::session_token)
-        .get_result(conn)
-        .unwrap()
+        .get_result::<Vec<u8>>(&mut *conn)
+        .await
+        .unwrap();
+    result
 }

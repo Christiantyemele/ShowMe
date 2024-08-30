@@ -1,9 +1,5 @@
 use axum::extract::Request;
 
-use diesel::{
-    r2d2::{ConnectionManager, Pool},
-    PgConnection,
-};
 use pbkdf2::{password_hash::SaltString, Pbkdf2};
 use rand_core::OsRng;
 
@@ -23,17 +19,17 @@ pub struct AuthState(
     Option<(
         SessionToken,
         Option<User>,
-        Pool<ConnectionManager<PgConnection>>,
+        Database,
     )>,
 );
 
 pub async fn new_session(mut database: Database, random: Random, uid: i32) -> SessionToken {
     let session_token = SessionToken::generate_new(random);
-    create_session(&mut database, session_token.clone(), uid);
+    create_session(&mut database, session_token.clone(), uid).await;
     session_token
 }
 // **AUTH MIDDLEWARE**
-pub async fn auth<B>(
+pub async fn auth(
     database: SharedDb,
     mut req: Request,
     next: axum::middleware::Next,
@@ -56,9 +52,9 @@ pub async fn auth<B>(
         .insert(AuthState(session_tk.map(|v| (v, None, database))));
     next.run(req).await
 }
-use serde::Deserialize;
+use serde::{Deserialize, Serialize};
 
-#[derive(Clone, Deserialize)]
+#[derive(Clone, Deserialize, Serialize)]
 pub struct SignupPayload {
     pub username: String,
     pub password: String,
@@ -79,7 +75,7 @@ pub async fn signup(
     if !valid_username(&username) {
         return Err(SignupError::InvalidUsername);
     }
-    if valid_username(&username) && get_user(&mut database, username.clone()).len() != 0 {
+    if valid_username(&username) && get_user(&mut database, username.clone()).await.len() != 0 {
         return Err(SignupError::UserNameTaken);
     } else {
         let salt = SaltString::generate(&mut OsRng);
@@ -89,7 +85,7 @@ pub async fn signup(
         } else {
             return Err(SignupError::InvalidPassword);
         };
-        let result = create_user(&mut database, username.clone(), hashed_password);
+        let result = create_user(&mut database, username.clone(), hashed_password).await;
         let new_user_id = match result {
             Ok(uid) => uid,
 
