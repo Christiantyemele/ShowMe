@@ -8,7 +8,7 @@ axum = "0.7.5"
 cookie = "0.18.1"
 deadpool-diesel = "0.6.1"
 diesel = { version = "2.2.3", features = ["postgres", "r2d2"] }
-diesel-async = { version = "0.5.0", features = ["bb8", "deadpool", "postgres"] }
+diesel-async = { version = "0.5.0", features = ["deadpool", "postgres"] }
 dotenvy = "0.15.7"
 getrandom = "0.2.15"
 http = "1.1.0"

@@ -1,5 +1,5 @@
 use diesel::prelude::*;
-use diesel_async::{pooled_connection::bb8::Pool, RunQueryDsl};
+use diesel_async::{pooled_connection::deadpool::Pool, RunQueryDsl};
 use diesel_async::{pooled_connection::AsyncDieselConnectionManager, AsyncPgConnection};
 use dotenvy::dotenv;
 use model::{NewUser, Session, Users};
@@ -54,11 +54,11 @@ pub async fn establish_connection() -> Pool<AsyncPgConnection> {
     let database_url = env::var("DATABASE_URL").expect("DATABASE_URL must be set");
     let manager = AsyncDieselConnectionManager::<AsyncPgConnection>::new(database_url);
 
-    Pool::builder()
-        .build(manager)
-        .await
+    Pool::builder(manager)
+        .build()
         .expect("Could not build connection pool")
 }
+
 pub async fn create_user(
     conn: &mut Database,
     user: String,
@@ -89,7 +89,8 @@ pub async fn delete_user(conn: &mut Database, usernam: String) {
 }
 pub async fn get_user(conn: &mut Database, usernam: String) -> Vec<Users> {
     use schema::users::dsl::*;
-    let mut conn = conn.get().await.unwrap();
+    let conn = conn.get().await.unwrap();
+    let mut conn = conn;
     let result = users
         .filter(username.eq(usernam))
         .select(Users::as_select())
