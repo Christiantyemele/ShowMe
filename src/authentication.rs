@@ -1,11 +1,15 @@
 use axum::extract::Request;
 
-use pbkdf2::{password_hash::SaltString, Pbkdf2};
+use pbkdf2::{
+    password_hash::{PasswordHash, PasswordVerifier, SaltString},
+    Pbkdf2,
+};
 use rand_core::OsRng;
 
 use crate::{
-    create_session, create_user, error::SignupError, get_user, Database, Random, SessionToken,
-    SharedDb, AUTH_COOKIE_NAME,
+    create_session, create_user,
+    error::{LoginError, SignupError},
+    get_id_pwd, get_user, Database, Random, SessionToken, AUTH_COOKIE_NAME,
 };
 use pbkdf2::password_hash::PasswordHasher;
 
@@ -15,13 +19,7 @@ pub struct User {
 }
 #[allow(unused)]
 #[derive(Clone)]
-pub struct AuthState(
-    Option<(
-        SessionToken,
-        Option<User>,
-        Database,
-    )>,
-);
+pub struct AuthState(Option<(SessionToken, Option<User>, Database)>);
 
 pub async fn new_session(mut database: Database, random: Random, uid: i32) -> SessionToken {
     let session_token = SessionToken::generate_new(random);
@@ -30,7 +28,7 @@ pub async fn new_session(mut database: Database, random: Random, uid: i32) -> Se
 }
 // **AUTH MIDDLEWARE**
 pub async fn auth(
-    database: SharedDb,
+    database: Database,
     mut req: Request,
     next: axum::middleware::Next,
 ) -> axum::response::Response {
@@ -61,10 +59,9 @@ pub struct SignupPayload {
 }
 pub async fn signup(
     mut database: Database,
-    random: Random,
     username: String,
     password: String,
-) -> Result<SessionToken, SignupError> {
+) -> Result<(), SignupError> {
     fn valid_username(username: &str) -> bool {
         (1..20).contains(&username.len())
             && username
@@ -86,13 +83,31 @@ pub async fn signup(
             return Err(SignupError::InvalidPassword);
         };
         let result = create_user(&mut database, username.clone(), hashed_password).await;
-        let new_user_id = match result {
+        let _new_user_id = match result {
             Ok(uid) => uid,
 
             _ => {
                 return Err(SignupError::InternalError);
             }
         };
-        Ok(new_session(database, random, new_user_id).await)
+        Ok(())
     }
+}
+pub async fn login(
+    mut database: Database,
+    username: String,
+    random: Random,
+    password: String,
+) -> Result<SessionToken, LoginError> {
+    let row = get_id_pwd(&mut database, username).await;
+    let (user_id, hashed_password) = if let Some(row) = row {
+        row
+    } else {
+        return Err(LoginError::UserDoesNotExists);
+    };
+    let verified_hash = PasswordHash::new(&hashed_password).unwrap();
+    if let Err(_err) = Pbkdf2.verify_password(password.as_bytes(), &verified_hash) {
+        return Err(LoginError::WrongPassword);
+    }
+    Ok(new_session(database, random, user_id).await)
 }

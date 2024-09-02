@@ -21,11 +21,10 @@ pub mod web;
 
 type Random = Arc<Mutex<ChaCha8Rng>>;
 const AUTH_COOKIE_NAME: &str = "auth_token";
-type Database = Pool<AsyncPgConnection>;
-pub type SharedDb = Pool<AsyncPgConnection>;
+pub type Database = Pool<AsyncPgConnection>;
 
 pub struct AppState {
-    pub database: SharedDb,
+    pub database: Database,
 }
 #[derive(Clone)]
 pub struct SessionToken(u128);
@@ -123,4 +122,15 @@ pub async fn create_session(conn: &mut Database, token: SessionToken, uid: i32) 
         .await
         .unwrap();
     result
+}
+pub async fn get_id_pwd(conn: &mut Database, usernam: String) -> Option<(i32, String)> {
+    let mut conn = conn.get().await.unwrap();
+    use schema::users::dsl::*;
+    let (user_id, password) = users
+        .filter(username.eq(usernam))
+        .select((id, passkey))
+        .get_result::<(i32, String)>(&mut *conn)
+        .await
+        .unwrap();
+    Some((user_id, password))
 }

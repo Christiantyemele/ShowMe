@@ -8,6 +8,14 @@ pub enum SignupError {
     UserNameTaken,
     InternalError,
     InvalidPassword,
+    
+}
+#[derive(Debug)]
+pub enum LoginError {
+    UserDoesNotExists,
+    WrongPassword,
+    MissingDetails,
+ 
 }
 impl Display for SignupError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
@@ -26,3 +34,14 @@ pub fn error_page(err: &dyn std::error::Error) -> impl IntoResponse {
         .body(format!("Err: {}", err))
         .unwrap()
 }
+impl Display for LoginError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            LoginError::UserDoesNotExists => f.write_str("User does not exist"),
+            LoginError::MissingDetails => f.write_str("Missing details"),
+            LoginError::WrongPassword => f.write_str("Wrong password"),
+        }
+    }
+}
+
+impl Error for LoginError {}
