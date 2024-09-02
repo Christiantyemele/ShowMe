@@ -5,6 +5,7 @@ use axum::routing::{get, post};
 use axum::{http::Response, Extension};
 use axum::{middleware, Router};
 use gp::authentication::auth;
+
 use gp::establish_connection;
 use gp::web::routes_signup::post_signup;
 use rand_chacha::ChaCha8Rng;
@@ -18,7 +19,12 @@ async fn welcome() -> impl IntoResponse {
 
 #[tokio::main]
 async fn main() {
-    let dbconn = establish_connection().await;
+    let dbconn: deadpool_diesel::Pool<
+        diesel_async::pooled_connection::AsyncDieselConnectionManager<
+            diesel_async::AsyncPgConnection,
+        >,
+    > = establish_connection().await;
+
     let mdlw_db = dbconn.clone();
     let random = ChaCha8Rng::seed_from_u64(OsRng.next_u64());
 
@@ -42,7 +48,9 @@ async fn api_tes() {
     use gp::authentication::SignupPayload;
     let payload = SignupPayload {
         username: "christian".to_owned(),
-        password: "sdafiuakffdsaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaajpertre".to_owned(),
+        password:
+            "sdafiuakffdsaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaaajpertre"
+                .to_owned(),
     };
     let req = reqwest::Client::new();
     req.post("http://localhost:8080/api/signup")
