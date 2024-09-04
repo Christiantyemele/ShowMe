@@ -7,9 +7,7 @@ use pbkdf2::{
 use rand_core::OsRng;
 
 use crate::{
-    create_session, create_user,
-    error::{LoginError, SignupError},
-    get_id_pwd, get_user, Database, Random, SessionToken, AUTH_COOKIE_NAME,
+    create_session, create_user, delete_logged_in, error::{LoginError, SignupError}, get_id_pwd, get_user, Database, Random, SessionToken, AUTH_COOKIE_NAME
 };
 use pbkdf2::password_hash::PasswordHasher;
 
@@ -19,7 +17,12 @@ pub struct User {
 }
 #[allow(unused)]
 #[derive(Clone)]
-pub struct AuthState(Option<(SessionToken, Option<User>, Database)>);
+pub struct AuthState(pub Option<(SessionToken, Option<User>, Database)>);
+impl AuthState {
+    pub fn logged_in(&self) -> bool {
+        self.0.is_some()
+    }
+}
 
 pub async fn new_session(mut database: Database, random: Random, uid: i32) -> SessionToken {
     let session_token = SessionToken::generate_new(random);
@@ -110,7 +113,4 @@ pub async fn login(
         return Err(LoginError::WrongPassword);
     }
     Ok(new_session(database, random, user_id).await)
-}
-pub async fn delete_me(auth_state: AuthState) {
-    
 }

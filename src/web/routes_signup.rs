@@ -1,9 +1,10 @@
-use crate::authentication::{login, signup, SignupPayload};
-use crate::error::error_page;
+use crate::authentication::{login, signup, AuthState, SignupPayload};
+use crate::error::{error_page, LoginError};
 use crate::utils::login_response;
-use crate::{Database, Random};
+use crate::{delete_logged_in, Database, Random};
 use axum::extract::Json;
 use axum::{response::IntoResponse, Extension};
+use http::StatusCode;
 use tower_cookies::Cookies;
 
 pub async fn post_signup(
@@ -31,5 +32,18 @@ pub async fn post_login(
     {
         Ok(session_tk) => Ok(login_response(cookie, session_tk).await),
         Err(err) => Err(error_page(&err)),
+    }
+}
+pub async fn post_delete_me(
+    Extension(mut database): Extension<Database>,
+    Extension(authstate): Extension<AuthState>,
+) -> impl IntoResponse {
+    if authstate.logged_in() {
+        let state = authstate.0.unwrap();
+        delete_logged_in(&mut database, state.0).await.unwrap();
+        StatusCode::OK
+    } else {
+        return Err(LoginError::NotLogging).unwrap();
+    
     }
 }

@@ -1,6 +1,7 @@
 use std::{error::Error, fmt::Display};
 
 use axum::response::{IntoResponse, Response};
+use cookie::time::error;
 #[derive(Debug)]
 
 pub enum SignupError {
@@ -8,22 +9,28 @@ pub enum SignupError {
     UserNameTaken,
     InternalError,
     InvalidPassword,
-    
 }
 #[derive(Debug)]
 pub enum LoginError {
     UserDoesNotExists,
     WrongPassword,
     MissingDetails,
- 
+
+    NotLogging,
 }
 impl Display for SignupError {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
-            SignupError::InternalError => {print!(""); f.write_str("Internal Error")},
+            SignupError::InternalError => {
+                print!("");
+                f.write_str("Internal Error")
+            }
             SignupError::UserNameTaken => f.write_str("Username already exits"),
             SignupError::InvalidPassword => f.write_str("Invalid Password"),
-            SignupError::InvalidUsername => {println!("invalid"); f.write_str("Invalid Username")},
+            SignupError::InvalidUsername => {
+                println!("invalid");
+                f.write_str("Invalid Username")
+            }
         }
     }
 }
@@ -40,6 +47,7 @@ impl Display for LoginError {
             LoginError::UserDoesNotExists => f.write_str("User does not exist"),
             LoginError::MissingDetails => f.write_str("Missing details"),
             LoginError::WrongPassword => f.write_str("Wrong password"),
+            LoginError::NotLogging => f.write_str("You are Not Logged In")
         }
     }
 }

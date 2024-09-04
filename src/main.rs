@@ -1,14 +1,14 @@
 use std::sync::{Arc, Mutex};
 
 use axum::response::IntoResponse;
-use axum::routing::{get, post};
+use axum::routing::{get, post, post_service};
 use axum::{http::Response, Extension};
 use axum::{middleware, Router};
 use gp::authentication::auth;
 
 use gp::establish_connection;
 use gp::utils::logout_response;
-use gp::web::routes_signup::{post_login, post_signup};
+use gp::web::routes_signup::{post_delete_me, post_login, post_signup};
 use rand_chacha::ChaCha8Rng;
 use rand_core::{OsRng, RngCore, SeedableRng};
 use tokio::net::TcpListener;
@@ -35,6 +35,7 @@ async fn main() {
         .route("/signup", post(post_signup))
         .route("/login", post(post_login))
         .route("/logout", post(logout_response))
+        .route("/delete", post(post_delete_me))
         .layer(middleware::from_fn(move |req, next| {
             auth(mdlw_db.clone(), req, next)
         }))
