@@ -1,7 +1,7 @@
 use std::{error::Error, fmt::Display};
 
 use axum::response::{IntoResponse, Response};
-use cookie::time::error;
+
 #[derive(Debug)]
 
 pub enum SignupError {
@@ -47,7 +47,7 @@ impl Display for LoginError {
             LoginError::UserDoesNotExists => f.write_str("User does not exist"),
             LoginError::MissingDetails => f.write_str("Missing details"),
             LoginError::WrongPassword => f.write_str("Wrong password"),
-            LoginError::NotLogging => f.write_str("You are Not Logged In")
+            LoginError::NotLogging => f.write_str("You are Not Logged In"),
         }
     }
 }

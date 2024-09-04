@@ -1,9 +1,8 @@
-use axum::Error;
 use diesel::prelude::*;
 use diesel_async::{pooled_connection::deadpool::Pool, RunQueryDsl};
 use diesel_async::{pooled_connection::AsyncDieselConnectionManager, AsyncPgConnection};
 use dotenvy::dotenv;
-use error::LoginError;
+
 use model::{NewUser, Session, Users};
 use rand_chacha::ChaCha8Rng;
 use std::{
@@ -138,7 +137,10 @@ pub async fn get_id_pwd(conn: &mut Database, usernam: String) -> Option<(i32, St
         Err(_) => None,
     }
 }
-pub async fn delete_logged_in(conn: &mut Database, session_tk: SessionToken) -> Result<usize, diesel::result::Error>{
+pub async fn delete_logged_in(
+    conn: &mut Database,
+    session_tk: SessionToken,
+) -> Result<usize, diesel::result::Error> {
     let mut conn = conn.get().await.unwrap();
     use schema::sessions::dsl::*;
     use schema::users::dsl::*;
@@ -147,7 +149,8 @@ pub async fn delete_logged_in(conn: &mut Database, session_tk: SessionToken) -> 
         .select(user_id)
         .first::<Option<i32>>(&mut *conn)
         .await
-        .unwrap().unwrap();
+        .unwrap()
+        .unwrap();
 
     diesel::delete(users.filter(id.eq(target_user_id)))
         .execute(&mut *conn)

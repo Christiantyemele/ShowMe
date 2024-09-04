@@ -1,7 +1,7 @@
 use std::sync::{Arc, Mutex};
 
 use axum::response::IntoResponse;
-use axum::routing::{get, post, post_service};
+use axum::routing::{get, post};
 use axum::{http::Response, Extension};
 use axum::{middleware, Router};
 use gp::authentication::auth;
@@ -36,7 +36,7 @@ async fn main() {
         .route("/login", post(post_login))
         .route("/logout", post(logout_response))
         .route("/delete", post(post_delete_me))
-        .layer(middleware::from_fn(move |req, next| {
+        .layer(middleware::from_fn(move |req: http::Request<axum::body::Body>, next| {
             auth(mdlw_db.clone(), req, next)
         }))
         .layer(CookieManagerLayer::new())

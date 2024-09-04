@@ -7,7 +7,9 @@ use pbkdf2::{
 use rand_core::OsRng;
 
 use crate::{
-    create_session, create_user, delete_logged_in, error::{LoginError, SignupError}, get_id_pwd, get_user, Database, Random, SessionToken, AUTH_COOKIE_NAME
+    create_session, create_user,
+    error::{LoginError, SignupError},
+    get_id_pwd, get_user, Database, Random, SessionToken, AUTH_COOKIE_NAME,
 };
 use pbkdf2::password_hash::PasswordHasher;
 
