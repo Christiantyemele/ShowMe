@@ -7,6 +7,7 @@ use axum::{middleware, Router};
 use gp::authentication::auth;
 
 use gp::establish_connection;
+use gp::utils::logout_response;
 use gp::web::routes_signup::{post_login, post_signup};
 use rand_chacha::ChaCha8Rng;
 use rand_core::{OsRng, RngCore, SeedableRng};
@@ -31,8 +32,9 @@ async fn main() {
     let listener = TcpListener::bind("0.0.0.0:8080").await.unwrap();
     let router = Router::new()
         .route("/", get(welcome))
-        .route("/api/signup", post(post_signup))
-        .route("api/login", post(post_login))
+        .route("/signup", post(post_signup))
+        .route("/login", post(post_login))
+        .route("/logout", post(logout_response))
         .layer(middleware::from_fn(move |req, next| {
             auth(mdlw_db.clone(), req, next)
         }))

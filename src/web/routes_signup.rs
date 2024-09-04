@@ -29,7 +29,7 @@ pub async fn post_login(
     )
     .await
     {
-        Ok(session_tk) => Ok(login_response(cookie, session_tk)),
+        Ok(session_tk) => Ok(login_response(cookie, session_tk).await),
         Err(err) => Err(error_page(&err)),
     }
 }

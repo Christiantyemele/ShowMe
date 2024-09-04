@@ -111,3 +111,6 @@ pub async fn login(
     }
     Ok(new_session(database, random, user_id).await)
 }
+pub async fn delete_me(auth_state: AuthState) {
+    
+}

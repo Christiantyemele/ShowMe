@@ -2,6 +2,7 @@ use diesel::prelude::*;
 use diesel_async::{pooled_connection::deadpool::Pool, RunQueryDsl};
 use diesel_async::{pooled_connection::AsyncDieselConnectionManager, AsyncPgConnection};
 use dotenvy::dotenv;
+use error::LoginError;
 use model::{NewUser, Session, Users};
 use rand_chacha::ChaCha8Rng;
 use std::{
@@ -126,11 +127,29 @@ pub async fn create_session(conn: &mut Database, token: SessionToken, uid: i32) 
 pub async fn get_id_pwd(conn: &mut Database, usernam: String) -> Option<(i32, String)> {
     let mut conn = conn.get().await.unwrap();
     use schema::users::dsl::*;
-    let (user_id, password) = users
+    match users
         .filter(username.eq(usernam))
         .select((id, passkey))
         .get_result::<(i32, String)>(&mut *conn)
         .await
+    {
+        Ok((user_id, password)) => Some((user_id, password)),
+        Err(_) => None,
+    }
+}
+pub async fn delete_logged_in(conn: &mut Database, session_token: SessionToken) {
+    let mut conn = conn.get().await.unwrap();
+    use schema::sessions::dsl::*;
+    use schema::users::dsl::*;
+    let target_user_id= sessions
+        .filter(session_token.eq(session_token))
+        .select(user_id)
+        .get_result(&mut *conn)
+        .await
         .unwrap();
-    Some((user_id, password))
+
+    diesel::delete(users.filter(id.eq(target_user_id)))
+        .execute(&mut *conn)
+        .await
+        .unwrap();
 }
