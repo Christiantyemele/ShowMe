@@ -137,16 +137,16 @@ pub async fn get_id_pwd(conn: &mut Database, usernam: String) -> Option<(i32, St
         Err(_) => None,
     }
 }
-pub async fn delete_logged_in(conn: &mut Database, session_token: SessionToken) {
+pub async fn delete_logged_in(conn: &mut Database, session_tk: SessionToken) {
     let mut conn = conn.get().await.unwrap();
     use schema::sessions::dsl::*;
     use schema::users::dsl::*;
-    let target_user_id= sessions
-        .filter(session_token.eq(session_token))
+    let target_user_id: i32 = sessions
+        .filter(session_token.eq(session_tk.into_database_value()))
         .select(user_id)
-        .get_result(&mut *conn)
+        .first::<Option<i32>>(&mut *conn)
         .await
-        .unwrap();
+        .unwrap().unwrap();
 
     diesel::delete(users.filter(id.eq(target_user_id)))
         .execute(&mut *conn)
